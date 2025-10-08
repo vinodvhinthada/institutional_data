@@ -599,59 +599,32 @@ def calculate_meter_value(market_data):
     avg_oi_change = weighted_oi_change / total_weight
     avg_pcr = weighted_pcr / total_weight
     
-    # Institutional sentiment logic
-    sentiment_score = 0.0
+    # 🧮 NORMALIZE EACH COMPONENT TO 0-1 SCALE (Institutional Method)
     
-    # Price + OI + PCR Analysis (Institutional Method)
-    if avg_price_change > 0 and avg_oi_change > 0:
-        if avg_pcr > 1.1:
-            # Price ↑ + OI ↑ + PCR ↑ = Long buildup (Bullish)
-            sentiment_score = 0.6 + (avg_price_change / 200) + (avg_oi_change / 500)
-        else:
-            # Price ↑ + OI ↑ + PCR ↓ = Mixed signals, mild bullish
-            sentiment_score = 0.3 + (avg_price_change / 300)
-            
-    elif avg_price_change < 0 and avg_oi_change > 0:
-        if avg_pcr < 0.9:
-            # Price ↓ + OI ↑ + PCR ↓ = Short buildup (Bearish)
-            sentiment_score = -0.6 + (avg_price_change / 200) - (avg_oi_change / 500)
-        else:
-            # Price ↓ + OI ↑ + PCR ↑ = Mixed signals, mild bearish
-            sentiment_score = -0.3 + (avg_price_change / 300)
-            
-    elif avg_price_change > 0 and avg_oi_change < 0:
-        # Price ↑ + OI ↓ = Short covering (Bullish but temporary)
-        sentiment_score = 0.4 + (avg_price_change / 250)
-        
-    elif avg_price_change < 0 and avg_oi_change < 0:
-        # Price ↓ + OI ↓ = Long unwinding (Bearish but temporary)
-        sentiment_score = -0.4 + (avg_price_change / 250)
-        
-    else:
-        # Neutral or low conviction moves
-        sentiment_score = avg_price_change / 400
+    # Normalize OI Change: -5% → 0, +5% → 1
+    norm_oi = (avg_oi_change + 5) / 10
+    norm_oi = max(0, min(1, norm_oi))  # Clip between 0-1
     
-    # Apply PCR impact modifier
-    pcr_modifier = 1.0
-    if avg_pcr > 1.2:
-        pcr_modifier = 1.15  # Strong bullish PCR amplifies sentiment
-    elif avg_pcr < 0.8:
-        pcr_modifier = 1.15  # Strong bearish PCR amplifies sentiment
-    elif 0.9 <= avg_pcr <= 1.1:
-        pcr_modifier = 0.85  # Neutral PCR dampens sentiment
+    # Normalize Price Change: -2% → 0, +2% → 1  
+    norm_price = (avg_price_change + 2) / 4
+    norm_price = max(0, min(1, norm_price))  # Clip between 0-1
     
-    final_score = sentiment_score * pcr_modifier
+    # Normalize PCR: 0.5 → 0, 1.5 → 1
+    norm_pcr = (avg_pcr - 0.5) / 1
+    norm_pcr = max(0, min(1, norm_pcr))  # Clip between 0-1
     
-    # Clamp to reasonable range
-    final_score = max(-1.0, min(1.0, final_score))
+    # 📈 INSTITUTIONAL SENTIMENT SCORE (ISS)
+    # Weights: Price 40%, OI 40%, PCR 20%
+    iss_score = (0.4 * norm_price) + (0.4 * norm_oi) + (0.2 * norm_pcr)
     
-    print(f"🧠 Institutional Meter Calculation:")
-    print(f"   📊 Weighted Price Change: {avg_price_change:.3f}%")
-    print(f"   📈 Weighted OI Change: {avg_oi_change:.3f}%") 
-    print(f"   🎯 Weighted PCR: {avg_pcr:.3f}")
-    print(f"   ⚖️ Raw Sentiment: {sentiment_score:.3f}")
-    print(f"   🔧 PCR Modifier: {pcr_modifier:.3f}")
-    print(f"   🏆 Final Score: {final_score:.3f}")
+    # Ensure ISS stays in 0-1 range
+    iss_score = max(0, min(1, iss_score))
+    
+    print(f"🧠 Institutional Sentiment Score (ISS) Calculation:")
+    print(f"   📊 Weighted Price Change: {avg_price_change:.3f}% → Normalized: {norm_price:.3f}")
+    print(f"   📈 Weighted OI Change: {avg_oi_change:.3f}% → Normalized: {norm_oi:.3f}") 
+    print(f"   🎯 Weighted PCR: {avg_pcr:.3f} → Normalized: {norm_pcr:.3f}")
+    print(f"   🏆 ISS Score: (0.4×{norm_price:.3f}) + (0.4×{norm_oi:.3f}) + (0.2×{norm_pcr:.3f}) = {iss_score:.3f}")
     print(f"   📋 Processed {len(market_data)} instruments with total weight: {total_weight:.2f}")
     
     # Debug: Show individual OI changes for top 5 stocks
@@ -663,54 +636,54 @@ def calculate_meter_value(market_data):
         oi_debug.append(f"{stock.get('symbol', 'N/A')}: {net_oi:,} ({oi_pct:.2f}%)")
     print(f"   🔍 Sample OI Changes: {', '.join(oi_debug)}")
     
-    return final_score
+    return iss_score
 
-def get_meter_status(meter_value):
-    """Get meter status, color, and trading action based on institutional sentiment score (-1.0 to +1.0)"""
-    if meter_value > 0.7:
+def get_meter_status(iss_score):
+    """Get meter status, color, and trading action based on ISS (0-1 scale)"""
+    if 0.75 <= iss_score <= 1.00:
         return {
             "status": "Strong Bullish", 
             "color": "success", 
-            "icon": "🟢",
+            "icon": "�",
             "action": "🚀 Go Long (Calls / Futures Buy / BTST Calls)",
-            "trade_type": "Directional Longs",
-            "confidence": "🚀 High"
+            "trade_type": "Long buildup, heavy long positions",
+            "confidence": "� Strong"
         }
-    elif 0.3 <= meter_value <= 0.7:
+    elif 0.60 <= iss_score < 0.75:
         return {
             "status": "Mild Bullish", 
             "color": "info", 
-            "icon": "🟡",
+            "icon": "⚡",
             "action": "📈 Buy on dips, avoid shorts",
-            "trade_type": "Call Scalps / Light Longs",
-            "confidence": "👍 Moderate"
+            "trade_type": "Possible intraday uptrend continuation",
+            "confidence": "⚡ Mild"
         }
-    elif -0.3 <= meter_value <= 0.3:
+    elif 0.40 <= iss_score < 0.60:
         return {
             "status": "Neutral", 
             "color": "secondary", 
-            "icon": "🔵",
+            "icon": "⚖️",
             "action": "⚖️ Avoid directional trades; scalp both sides",
-            "trade_type": "Iron Fly / Straddle / Range scalps",
-            "confidence": "😐 Low"
+            "trade_type": "Uncertain / consolidation",
+            "confidence": "⚖️ Neutral"
         }
-    elif -0.7 <= meter_value <= -0.3:
+    elif 0.25 <= iss_score < 0.40:
         return {
             "status": "Mild Bearish", 
             "color": "warning", 
-            "icon": "🟠",
+            "icon": "🧊",
             "action": "📉 Sell on rise, avoid longs",
-            "trade_type": "Put Scalps / Light Shorts",
-            "confidence": "👎 Moderate"
+            "trade_type": "Short buildup signals forming",
+            "confidence": "🧊 Mild"
         }
-    else:
+    else:  # 0.00 <= iss_score < 0.25
         return {
             "status": "Strong Bearish", 
             "color": "danger", 
-            "icon": "🔴",
+            "icon": "❄️",
             "action": "💣 Go Short (Puts / Futures Sell / BTST Puts)",
-            "trade_type": "Directional Shorts",
-            "confidence": "💣 High"
+            "trade_type": "Heavy shorts or profit booking",
+            "confidence": "❄️ Strong"
         }
 
 @app.route('/test/dates')

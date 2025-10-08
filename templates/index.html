@@ -175,16 +175,17 @@
                 <div class="row">
                     <div class="col-12">
                         <div class="alert alert-info">
-                            <h6><i class="fas fa-info-circle"></i> Institutional Sentiment Meter (Weighted OI + PCR + Price):</h6>
-                            <div class="row">
-                                <div class="col-md-3">🟢 <strong>Strong Bullish:</strong> Score > 0.7</div>
-                                <div class="col-md-3">🟡 <strong>Mild Bullish:</strong> 0.3 - 0.7</div>
-                                <div class="col-md-3">🔵 <strong>Neutral:</strong> -0.3 - 0.3</div>
-                                <div class="col-md-3">🔴 <strong>Bearish:</strong> Score < -0.3</div>
+                            <h6><i class="fas fa-graduation-cap"></i> Institutional Sentiment Score (ISS) - Professional Methodology:</h6>
+                            <div class="row mb-2">
+                                <div class="col-md-2">� <strong>Strong Bullish:</strong> 0.75 - 1.00</div>
+                                <div class="col-md-2">⚡ <strong>Mild Bullish:</strong> 0.60 - 0.75</div>
+                                <div class="col-md-2">⚖️ <strong>Neutral:</strong> 0.40 - 0.60</div>
+                                <div class="col-md-3">🧊 <strong>Mild Bearish:</strong> 0.25 - 0.40</div>
+                                <div class="col-md-3">❄️ <strong>Strong Bearish:</strong> 0.00 - 0.25</div>
                             </div>
                             <small class="text-muted">
-                                <i class="fas fa-graduation-cap"></i> 
-                                Using institutional methodology: Weighted Price Change + OI Analysis + PCR Impact
+                                <strong>Formula:</strong> ISS = 0.4×(Normalized Price) + 0.4×(Normalized OI) + 0.2×(Normalized PCR)<br>
+                                <strong>Ranges:</strong> OI Change: -5% to +5% | Price Change: -2% to +2% | PCR: 0.5 to 1.5
                             </small>
                         </div>
                     </div>
