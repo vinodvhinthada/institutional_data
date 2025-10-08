@@ -556,14 +556,25 @@ def calculate_meter_value(market_data):
         weight = stock.get('weight', 0.0)
         price_change = stock.get('percentChange', 0.0)
         
-        # Get OI change (if available, otherwise use volume as proxy)
-        oi_change = stock.get('oiChangePercent', 0.0)
-        if oi_change == 0.0:
-            # Use volume change as OI proxy when OI data not available
-            volume = stock.get('volume', 0.0)
-            avg_volume = stock.get('avgVolume', volume)
-            if avg_volume > 0:
-                oi_change = ((volume - avg_volume) / avg_volume) * 100
+        # Get OI change (actual field from Angel One API)
+        net_oi_change = stock.get('netChangeOpnInterest', 0)
+        current_oi = stock.get('opnInterest', 0)
+        
+        # Calculate OI change percentage
+        if current_oi > 0 and net_oi_change != 0:
+            oi_change = (net_oi_change / current_oi) * 100
+        else:
+            # For stocks (NSE), use volume change as OI proxy
+            volume = stock.get('tradeVolume', 0)
+            if volume > 0:
+                # Use volume intensity relative to market cap as proxy
+                # Higher volume relative to normal indicates institutional interest
+                volume_intensity = volume / 100000  # Normalize volume
+                price_change = stock.get('percentChange', 0.0)
+                # Volume combined with price movement gives directional OI proxy
+                oi_change = volume_intensity * (price_change / 10) if price_change != 0 else 0
+            else:
+                oi_change = 0
         
         # Calculate PCR proxy (simplified for futures)
         # In real implementation, you'd get actual PCR data per stock
@@ -641,6 +652,16 @@ def calculate_meter_value(market_data):
     print(f"   ⚖️ Raw Sentiment: {sentiment_score:.3f}")
     print(f"   🔧 PCR Modifier: {pcr_modifier:.3f}")
     print(f"   🏆 Final Score: {final_score:.3f}")
+    print(f"   📋 Processed {len(market_data)} instruments with total weight: {total_weight:.2f}")
+    
+    # Debug: Show individual OI changes for top 5 stocks
+    oi_debug = []
+    for stock in market_data[:5]:
+        net_oi = stock.get('netChangeOpnInterest', 0)
+        curr_oi = stock.get('opnInterest', 0)
+        oi_pct = (net_oi / curr_oi * 100) if curr_oi > 0 else 0
+        oi_debug.append(f"{stock.get('symbol', 'N/A')}: {net_oi:,} ({oi_pct:.2f}%)")
+    print(f"   🔍 Sample OI Changes: {', '.join(oi_debug)}")
     
     return final_score
 
